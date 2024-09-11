@@ -11,27 +11,23 @@ import (
 func outputProductUrls(inputLinks []string) {
 	// Maximum number of workers (parallel tasks) to run at once
 	maxWorkers := getInputLinkHandlingWorkerCount()
-	sem := make(chan struct{}, maxWorkers) // Semaphore to limit concurrent workers
+	sem := make(chan struct{}, maxWorkers)
 
 	var wg sync.WaitGroup
 
-	// Iterate over the inputLinks
 	for _, link := range inputLinks {
-		// Add a worker
 		wg.Add(1)
-		sem <- struct{}{} // Acquire a worker slot
+		sem <- struct{}{}
 
-		// Run in parallel for each link
 		go func(link string) {
 			defer wg.Done()
-			defer func() { <-sem }() // Release the worker slot
+			defer func() { <-sem }()
 
 			fmt.Printf("Processing link: %s\n", link)
 
 			// Try fetching products using sitemap first
 			baseDomain, productLinks := outputProductUrlsUsingSitemap(link)
 
-			// Check if we got any product links from sitemap
 			if len(productLinks) == 0 {
 				fmt.Printf("No product links found in Sitemap for %s, attempting dynamic scrape...\n", baseDomain)
 
@@ -58,10 +54,9 @@ func outputProductUrls(inputLinks []string) {
 				fmt.Printf("No product links found for %s.\n", baseDomain)
 			}
 
-		}(link) // Pass the link to the goroutine
+		}(link)
 	}
 
-	// Wait for all workers to finish
 	wg.Wait()
 	fmt.Println("Finished processing all links.")
 }

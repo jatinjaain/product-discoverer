@@ -31,7 +31,6 @@ type URL struct {
 	Loc string `xml:"loc"`
 }
 
-// Custom HTTP client with forced HTTP/1.1 and User-Agent header
 var client = &http.Client{
 	Transport: &http.Transport{
 		DisableKeepAlives: true,  // Ensure no persistent connections
@@ -39,11 +38,9 @@ var client = &http.Client{
 	},
 }
 
-// Fetch robots.txt and extract sitemap URL
 func fetchSitemapURL(website string) (string, error) {
 	robotsURL := website + "/robots.txt"
 
-	// Create a new request with a User-Agent header
 	req, err := http.NewRequest("GET", robotsURL, nil)
 	if err != nil {
 		return "", err
@@ -72,7 +69,6 @@ func fetchSitemapURL(website string) (string, error) {
 	return "", fmt.Errorf("no sitemap found in robots.txt")
 }
 
-// Fetch and parse sitemap to find URLs with /product/ or /products/
 func fetchProductURLs(sitemapURL string) (map[string]bool, error) {
 	req, err := http.NewRequest("GET", sitemapURL, nil)
 	if err != nil {
@@ -88,23 +84,19 @@ func fetchProductURLs(sitemapURL string) (map[string]bool, error) {
 
 	var bodyBytes []byte
 
-	// Check if the sitemap is gzipped
 	if strings.HasSuffix(sitemapURL, ".xml.gz") {
-		// Decompress .xml.gz
-		fmt.Println("decompressing")
+		fmt.Println("decompressing...")
 		bodyBytes, err = decompressGzip(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("could not decompress sitemap: %v", err)
 		}
 	} else {
-		// Read as regular XML
 		bodyBytes, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("could not read sitemap: %v", err)
 		}
 	}
 
-	// Check if it's a sitemap index or a regular sitemap
 	if strings.Contains(string(bodyBytes), "<sitemapindex") {
 		return processSitemapIndex(bodyBytes)
 	} else if strings.Contains(string(bodyBytes), "<urlset") {
@@ -114,7 +106,6 @@ func fetchProductURLs(sitemapURL string) (map[string]bool, error) {
 	return nil, fmt.Errorf("unsupported sitemap format")
 }
 
-// Decompress GZIP data
 func decompressGzip(reader io.Reader) ([]byte, error) {
 	gzReader, err := gzip.NewReader(reader)
 	if err != nil {
@@ -131,7 +122,6 @@ func decompressGzip(reader io.Reader) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Process sitemap index to find product-related sitemaps
 func processSitemapIndex(body []byte) (map[string]bool, error) {
 	var sitemapIndex SitemapIndex
 	err := xml.Unmarshal(body, &sitemapIndex)
@@ -144,7 +134,6 @@ func processSitemapIndex(body []byte) (map[string]bool, error) {
 	for _, sitemap := range sitemapIndex.Sitemaps {
 		fmt.Println("sitemap.Loc s: ", sitemap.Loc)
 		if strings.Contains(sitemap.Loc, "product") || strings.Contains(sitemap.Loc, "products") {
-			// Fetch and process product sitemap
 			urls, err := fetchProductURLs(sitemap.Loc)
 			if err == nil {
 				for url := range urls {
@@ -154,7 +143,7 @@ func processSitemapIndex(body []byte) (map[string]bool, error) {
 		}
 	}
 
-	// If no product sitemap is found, try all sitemaps
+	// If no sitemap containing "product" or "products" is found, try all sitemaps
 	if len(productURLs) == 0 {
 		for _, sitemap := range sitemapIndex.Sitemaps {
 			urls, err := fetchProductURLs(sitemap.Loc)
@@ -169,7 +158,6 @@ func processSitemapIndex(body []byte) (map[string]bool, error) {
 	return productURLs, nil
 }
 
-// Process a regular URL set to find URLs with /product/ or /products/
 func processURLSet(body []byte) (map[string]bool, error) {
 	var urlSet URLSet
 	err := xml.Unmarshal(body, &urlSet)
